@@ -75,6 +75,24 @@ func removeRecord(ctx *cli.Context) error {
 	return nil
 }
 
+func getEntries(ctx *cli.Context) error {
+	var records []Record
+	db.Find(&records)
+
+	fmt.Printf("Total entries tracked %-3d\n", len(records))
+
+	return nil
+}
+
+func decreaseAmount(ctx *cli.Context) error {
+	var record Record
+	item := ctx.Args().Get(0)
+
+	db.Where("item = ?", item).First(&record).Update("amount", record.Amount-1)
+
+	return nil
+}
+
 func main() {
 	var err error
 
@@ -111,6 +129,17 @@ func main() {
 				Aliases: []string{"rm", "rem"},
 				Usage:   "Removes a tracked inventory item",
 				Action:  removeRecord,
+			},
+			{
+				Name:   "entries",
+				Usage:  "Prints the total amount of items tracked",
+				Action: getEntries,
+			},
+			{
+				Name:    "decrease",
+				Usage:   "Decreases the amount of an item by 1",
+				Aliases: []string{"d", "dec"},
+				Action:  decreaseAmount,
 			},
 		},
 	}
