@@ -5,6 +5,7 @@ import (
 	"os"
 	"strconv"
 
+	"github.com/TRudenko22/inventory/data"
 	"github.com/urfave/cli/v2"
 	"gorm.io/driver/sqlite"
 	"gorm.io/gorm"
@@ -61,12 +62,15 @@ func updateRecord(ctx *cli.Context) error {
 		return err
 	}
 
-	newRecord := Record{
-		Item:   newItem,
-		Amount: newAmount,
-	}
+	db.Model(&Record{}).Where("item = ?", newItem).Update("amount", newAmount)
 
-	db.Model(&newRecord).Where("item = ?", newRecord.Item).Update("amount", newRecord.Amount)
+	return nil
+}
+
+func removeRecord(ctx *cli.Context) error {
+	item := ctx.Args().Get(0)
+
+	db.Where("item = ?", item).Delete(&Record{})
 
 	return nil
 }
@@ -74,7 +78,7 @@ func updateRecord(ctx *cli.Context) error {
 func main() {
 	var err error
 
-	db, err = gorm.Open(sqlite.Open("inventory.db"), &gorm.Config{})
+	db, err = gorm.Open(sqlite.Open(string(data.MustAsset("data/inventory.db"))), &gorm.Config{})
 	if err != nil {
 		panic(err)
 	}
@@ -92,14 +96,21 @@ func main() {
 				Action: addRecord,
 			},
 			{
-				Name:   "ls",
-				Usage:  "lists the inventory",
-				Action: getRecords,
+				Name:    "list",
+				Aliases: []string{"l", "ls"},
+				Usage:   "Lists the inventory",
+				Action:  getRecords,
 			},
 			{
 				Name:   "update",
-				Usage:  "updates inventory record",
+				Usage:  "Updates inventory record",
 				Action: updateRecord,
+			},
+			{
+				Name:    "remove",
+				Aliases: []string{"rm", "rem"},
+				Usage:   "Removes a tracked inventory item",
+				Action:  removeRecord,
 			},
 		},
 	}
