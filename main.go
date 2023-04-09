@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"os"
 	"strconv"
+	"strings"
 
 	"github.com/TRudenko22/inventory/data"
 	"github.com/urfave/cli/v2"
@@ -19,20 +20,31 @@ var banner = `
 -------------------------------------------`
 
 type Record struct {
-	Item   string `gorm:"primary key,unique"`
-	Amount int
+	Item      string `gorm:"primary key,unique"`
+	Amount    int
+	Namespace string
+}
+
+func (r Record) Output() string {
+	return fmt.Sprintf("- %-20s| %-4d -| %s\n", r.Item, r.Amount, r.Namespace)
 }
 
 func addRecord(ctx *cli.Context) error {
-	item := ctx.Args().Get(0)
+	item := strings.Title(ctx.Args().Get(0))
 	amount, err := strconv.Atoi(ctx.Args().Get(1))
 	if err != nil {
 		return err
 	}
 
+	namespace := ctx.Args().Get(2)
+	if len(namespace) == 0 {
+		namespace = "Misc"
+	}
+
 	record := Record{
-		Item:   item,
-		Amount: amount,
+		Item:      item,
+		Amount:    amount,
+		Namespace: namespace,
 	}
 
 	db.Create(&record)
@@ -47,7 +59,7 @@ func getRecords(ctx *cli.Context) error {
 
 	fmt.Println(banner)
 	for _, i := range records {
-		fmt.Printf("- %-20s| %-4d          -\n", i.Item, i.Amount)
+		fmt.Printf(i.Output())
 	}
 
 	fmt.Println()
@@ -56,7 +68,7 @@ func getRecords(ctx *cli.Context) error {
 }
 
 func updateRecord(ctx *cli.Context) error {
-	newItem := ctx.Args().Get(0)
+	newItem := strings.Title(ctx.Args().Get(0))
 	newAmount, err := strconv.Atoi(ctx.Args().Get(1))
 	if err != nil {
 		return err
@@ -68,7 +80,7 @@ func updateRecord(ctx *cli.Context) error {
 }
 
 func removeRecord(ctx *cli.Context) error {
-	item := ctx.Args().Get(0)
+	item := strings.Title(ctx.Args().Get(0))
 
 	db.Where("item = ?", item).Delete(&Record{})
 
@@ -86,9 +98,25 @@ func getEntries(ctx *cli.Context) error {
 
 func decreaseAmount(ctx *cli.Context) error {
 	var record Record
-	item := ctx.Args().Get(0)
-
+	item := strings.Title(ctx.Args().Get(0))
 	db.Where("item = ?", item).First(&record).Update("amount", record.Amount-1)
+
+	return nil
+}
+
+func getByNamespace(ctx *cli.Context) error {
+	var records []Record
+	namespace := strings.Title(ctx.Args().Get(0))
+	if len(namespace) == 0 {
+		fmt.Println("No namespace given")
+		return nil
+	}
+
+	db.Where("namespace = ?", namespace).Find(&records)
+	fmt.Println(namespace)
+	for _, i := range records {
+		fmt.Printf("\t" + i.Output())
+	}
 
 	return nil
 }
@@ -140,6 +168,12 @@ func main() {
 				Usage:   "Decreases the amount of an item by 1",
 				Aliases: []string{"d", "dec"},
 				Action:  decreaseAmount,
+			},
+			{
+				Name:    "namespace",
+				Usage:   "Retrieves records by namespace",
+				Aliases: []string{"nm", "name"},
+				Action:  getByNamespace,
 			},
 		},
 	}
